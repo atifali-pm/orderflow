@@ -53,5 +53,8 @@ composer.phar
 # Local Claude Code session state
 .claude/
 
+# Marketing drafts kept locally, not in the public repo
+/docs/PROMOTION-DRAFT.md
+
 # Build artifacts
 /tmp_laravel/

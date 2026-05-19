@@ -1,0 +1,97 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pest:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: orderflow_test
+          POSTGRES_USER: orderflow
+          POSTGRES_PASSWORD: orderflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U orderflow -d orderflow_test"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: orderflow_test
+      DB_USERNAME: orderflow
+      DB_PASSWORD: orderflow
+      REDIS_CLIENT: predis
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: sync
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_pgsql, mbstring, bcmath, intl, fileinfo, openssl, curl, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP deps
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare app
+        run: |
+          cat > .env <<EOF
+          APP_NAME=Orderflow
+          APP_ENV=testing
+          APP_KEY=
+          APP_DEBUG=true
+          DB_CONNECTION=pgsql
+          DB_HOST=127.0.0.1
+          DB_PORT=5432
+          DB_DATABASE=orderflow_test
+          DB_USERNAME=orderflow
+          DB_PASSWORD=orderflow
+          REDIS_CLIENT=predis
+          REDIS_HOST=127.0.0.1
+          REDIS_PORT=6379
+          CACHE_STORE=redis
+          SESSION_DRIVER=redis
+          QUEUE_CONNECTION=sync
+          MAIL_MAILER=array
+          EOF
+          php artisan key:generate
+
+      - name: Run Pest
+        run: ./vendor/bin/pest --colors=always

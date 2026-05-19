@@ -24,24 +24,44 @@
     },
     {
       "parameters": {
+        "jsCode": "// Verify the HMAC-SHA256 signature against the canonical (deeply-sorted-keys) JSON body.\n// Must match the Laravel HmacSigner exactly so signatures verify deterministically.\nconst crypto = require('crypto');\n\nfunction sortKeysDeep(value) {\n  if (Array.isArray(value)) return value.map(sortKeysDeep);\n  if (value && typeof value === 'object') {\n    const out = {};\n    for (const k of Object.keys(value).sort()) out[k] = sortKeysDeep(value[k]);\n    return out;\n  }\n  return value;\n}\n\nconst input = $input.first().json;\nconst body = input.body || {};\nconst headers = input.headers || {};\nconst providedSig = headers['x-orderflow-signature'] || '';\nconst secret = $env.ORDERFLOW_HMAC_SECRET || '';\n\nconst canonical = JSON.stringify(sortKeysDeep(body));\nconst expected = crypto.createHmac('sha256', secret).update(canonical).digest('hex');\n\nlet valid = false;\ntry {\n  valid = providedSig.length === expected.length && crypto.timingSafeEqual(\n    Buffer.from(providedSig, 'utf8'),\n    Buffer.from(expected, 'utf8'),\n  );\n} catch (e) {\n  valid = false;\n}\n\nreturn [{ json: { ...input, _hmacValid: valid, _hmacExpected: expected } }];"
+      },
+      "id": "node-verify-hmac",
+      "name": "Verify HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "hmac-ok",
+              "leftValue": "={{ $json._hmacValid }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-valid",
+      "name": "Signature valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [600, 320]
+    },
+    {
+      "parameters": {
         "values": {
           "string": [
-            {
-              "name": "orderId",
-              "value": "={{ $json.body.order.id }}"
-            },
-            {
-              "name": "orderRef",
-              "value": "={{ $json.body.order.reference }}"
-            },
-            {
-              "name": "customerEmail",
-              "value": "={{ $json.body.order.customer.email }}"
-            },
-            {
-              "name": "orderTotal",
-              "value": "={{ $json.body.order.total }}"
-            }
+            { "name": "orderId", "value": "={{ $json.body.order.id }}" },
+            { "name": "orderRef", "value": "={{ $json.body.order.reference }}" },
+            { "name": "customerEmail", "value": "={{ $json.body.order.customer.email }}" },
+            { "name": "orderTotal", "value": "={{ $json.body.order.total }}" }
           ]
         },
         "options": {}
@@ -50,7 +70,7 @@
       "name": "Extract fields",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3,
-      "position": [420, 320]
+      "position": [820, 240]
     },
     {
       "parameters": {
@@ -73,7 +93,7 @@
       "name": "Log webhook.received",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [640, 320]
+      "position": [1040, 240]
     },
     {
       "parameters": {
@@ -83,7 +103,7 @@
       "name": "Generate invoice number",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [860, 320]
+      "position": [1260, 240]
     },
     {
       "parameters": {
@@ -106,7 +126,7 @@
       "name": "Patch order with invoice",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1080, 320]
+      "position": [1480, 240]
     },
     {
       "parameters": {
@@ -129,7 +149,7 @@
       "name": "Log invoice.generated",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1300, 320]
+      "position": [1700, 240]
     },
     {
       "parameters": {
@@ -137,16 +157,38 @@
         "responseBody": "={\n  \"received\": true,\n  \"order_id\": {{ $('Extract fields').item.json.orderId }},\n  \"invoice_number\": \"{{ $('Generate invoice number').item.json.invoiceNumber }}\"\n}",
         "options": {}
       },
-      "id": "node-respond",
-      "name": "Respond to Laravel",
+      "id": "node-respond-ok",
+      "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1520, 320]
+      "position": [1920, 240]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 401,
+        "responseBody": "={\n  \"received\": false,\n  \"error\": \"hmac_invalid\",\n  \"expected\": \"{{ $json._hmacExpected }}\"\n}",
+        "options": {}
+      },
+      "id": "node-respond-reject",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [820, 460]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{ "node": "Extract fields", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Verify HMAC", "type": "main", "index": 0 }]]
+    },
+    "Verify HMAC": {
+      "main": [[{ "node": "Signature valid?", "type": "main", "index": 0 }]]
+    },
+    "Signature valid?": {
+      "main": [
+        [{ "node": "Extract fields", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
     },
     "Extract fields": {
       "main": [[{ "node": "Log webhook.received", "type": "main", "index": 0 }]]
@@ -161,7 +203,7 @@
       "main": [[{ "node": "Log invoice.generated", "type": "main", "index": 0 }]]
     },
     "Log invoice.generated": {
-      "main": [[{ "node": "Respond to Laravel", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]]
     }
   }
 }

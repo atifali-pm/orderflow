@@ -1,5 +1,7 @@
 # Orderflow
 
+[![tests](https://github.com/atifali-pm/orderflow/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/atifali-pm/orderflow/actions/workflows/tests.yml)
+
 A small order management application with first-class n8n automation. Place an order in the UI, watch a workflow run multi-step automation (invoicing, notifications, CRM sync), and see the order update itself via callback within seconds.
 
 ## Why this exists
