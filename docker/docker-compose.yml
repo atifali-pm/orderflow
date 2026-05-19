@@ -1,0 +1,88 @@
+# Orderflow local stack.
+# Five services: app (PHP placeholder until Phase 1 lands Laravel), postgres, redis, n8n, mailpit.
+# Run from the repo root: `docker compose -f docker/docker-compose.yml up -d`.
+#
+# Phase 0 note: the `app` service is a placeholder PHP 8.3 CLI container that mounts the project.
+# Phase 1 will replace it with a proper PHP-FPM + nginx pair once Laravel is installed.
+
+name: orderflow
+
+services:
+  app:
+    image: php:8.3-cli
+    container_name: orderflow-app
+    working_dir: /var/www/html
+    volumes:
+      - ../:/var/www/html
+    ports:
+      - "${APP_HOST_PORT:-8050}:80"
+    command: ["sh", "-c", "echo 'orderflow app placeholder. Phase 1 swaps this for nginx+php-fpm running Laravel. Sleeping.' && sleep infinity"]
+    depends_on:
+      - postgres
+      - redis
+      - mailpit
+    networks:
+      - orderflow
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: orderflow-postgres
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-orderflow}
+      POSTGRES_USER: ${DB_USERNAME:-orderflow}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-orderflow}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_HOST_PORT:-5457}:5432"
+    networks:
+      - orderflow
+
+  redis:
+    image: redis:7-alpine
+    container_name: orderflow-redis
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_HOST_PORT:-6383}:6379"
+    networks:
+      - orderflow
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: orderflow-n8n
+    environment:
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:${N8N_HOST_PORT:-5679}/
+      GENERIC_TIMEZONE: Asia/Karachi
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ../n8n/workflows:/home/node/workflows
+    ports:
+      - "${N8N_HOST_PORT:-5679}:5678"
+    networks:
+      - orderflow
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: orderflow-mailpit
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - "${MAILPIT_HOST_PORT:-8025}:8025"
+      # SMTP 1025 stays internal to the docker network. No host exposure.
+    networks:
+      - orderflow
+
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
+
+networks:
+  orderflow:
+    driver: bridge

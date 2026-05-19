@@ -1,0 +1,54 @@
+# Laravel
+/vendor
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/testing
+/storage/framework/views
+/storage/logs
+/bootstrap/cache
+.phpunit.result.cache
+.phpunit.cache
+.php-cs-fixer.cache
+.rr.yaml
+
+# Env
+.env
+.env.backup
+.env.production
+.env.*.local
+
+# Node / frontend
+npm-debug.log
+yarn-error.log
+.npm
+.yarn
+
+# Docker volumes (kept local, never committed)
+docker/n8n/data/
+docker/postgres/data/
+docker/redis/data/
+docker/mailpit/data/
+n8n_data/
+postgres_data/
+redis_data/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+Thumbs.db
+
+# Composer
+composer.phar
+
+# Build artifacts
+/tmp_laravel/
