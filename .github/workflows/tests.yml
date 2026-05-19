@@ -67,6 +67,12 @@ jobs:
           key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
           restore-keys: composer-${{ runner.os }}-
 
+      - name: Create gitignored Laravel runtime dirs
+        run: |
+          mkdir -p bootstrap/cache
+          mkdir -p storage/framework/{cache/data,sessions,testing,views}
+          mkdir -p storage/logs
+
       - name: Install PHP deps
         run: composer install --no-interaction --no-progress --prefer-dist
 
