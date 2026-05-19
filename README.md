@@ -29,12 +29,16 @@ Most order tools either run pure manual ops in a CRUD UI or push everything thro
 - Phase 1 (shipped): Laravel 11 + Breeze (Livewire), Pest, Postgres, Redis, Mailpit wired. Customers / Orders / OrderItems domain. Livewire surfaces for the orders index, create form, and detail view. Demo seeder for fast local data.
 - Phase 2 (shipped): outbound integration. Four domain events (OrderPlaced / OrderPaid / OrderShipped / OrderCancelled) fired from the Create form and from status buttons on the Show view. Events queue `SyncToN8nJob` (Horizon, Redis-backed) which POSTs a signed payload to n8n. HMAC uses deeply sorted-key canonical JSON so n8n can verify deterministically. A demo "Log payload" workflow imported into n8n confirms the round trip returns 200.
 - Phase 3 (shipped): inbound integration. `/api/orders/{order}` (GET / PATCH) and `/api/orders/{order}/automation-log` (POST) behind two middlewares: `n8n.token` (Bearer + `hash_equals`) and `idempotency` (Redis-backed 24h dedupe with `X-Idempotency-Replay` on cache hits). `AutomationLog` model records every n8n step result; the Order Show view now polls and renders the timeline with payloads. Production workflow JSON committed at `n8n/workflows/order-placed.json`.
-- Phase 4: polish. Timeline UI, dashboard cards, recorded demo, screenshots
+- Phase 4 (shipped): polish. Dashboard with KPI tiles (total orders, revenue, status counts), Orders-by-status breakdown, Recent orders, and a live Recent automation activity feed polling every 10s. Orders index gets a debounced search across reference / invoice / customer name + email. Recorded demo video and refreshed screenshots committed to `/screenshots/`.
 - Phase 5 (optional): hosting if there is a reason
 
 ## Screenshots
 
-Orders index, paginated with status filter:
+Dashboard with KPI tiles, orders by status, recent orders, and the live automation activity feed:
+
+![Dashboard](screenshots/00-dashboard.png)
+
+Orders index. Debounced search across reference / invoice / customer plus a status filter. Paginated:
 
 ![Orders index](screenshots/01-orders-index.png)
 
@@ -57,6 +61,14 @@ A `SyncToN8nJob` completing on the `n8n` queue after a status change:
 Order Show with the live automation timeline. Each card is one `AutomationLog` row written by n8n through `/api/orders/{id}/automation-log`. The invoice number badge in the corner comes from the workflow's `PATCH /api/orders/{id}`. The view polls every 5s so new steps appear without a reload:
 
 ![Order timeline](screenshots/06-order-timeline.png)
+
+## Demo
+
+A 24-second recording of the end-to-end flow: log in, open the dashboard, drill into an order, watch the automation timeline fill in as n8n posts callbacks, then back to the dashboard where the recent activity feed picks the new entries up.
+
+![Demo](screenshots/07-demo.gif)
+
+The same recording in a smaller MP4 is at [screenshots/07-demo.mp4](screenshots/07-demo.mp4).
 
 ## Running it locally (Phase 1)
 

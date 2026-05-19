@@ -12,18 +12,22 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4">
             <div class="bg-white rounded-lg shadow-sm p-4 flex flex-wrap items-center gap-3">
-                <label for="statusFilter" class="text-sm font-medium text-gray-700">Filter by status</label>
+                <input type="search" wire:model.live.debounce.300ms="search"
+                       placeholder="Search reference, invoice, customer..."
+                       class="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-72" />
+
+                <label for="statusFilter" class="text-sm font-medium text-gray-700 ml-2">Status</label>
                 <select id="statusFilter" wire:model.live="statusFilter"
                         class="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="">All statuses</option>
+                    <option value="">All</option>
                     @foreach ($statuses as $status)
                         <option value="{{ $status }}">{{ ucfirst($status) }}</option>
                     @endforeach
                 </select>
 
-                @if ($statusFilter !== '')
-                    <button type="button" wire:click="$set('statusFilter', '')"
-                            class="text-xs text-gray-500 underline">Clear filter</button>
+                @if ($statusFilter !== '' || $search !== '')
+                    <button type="button" wire:click="$set('statusFilter', ''); $set('search', '')"
+                            class="text-xs text-gray-500 underline">Reset</button>
                 @endif
 
                 <div class="ml-auto text-sm text-gray-500">
