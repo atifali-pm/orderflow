@@ -18,6 +18,8 @@ class Order extends Model
         'reference',
         'status',
         'total',
+        'invoice_number',
+        'external_id',
         'notes',
         'placed_at',
     ];
@@ -35,6 +37,11 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function automationLogs(): HasMany
+    {
+        return $this->hasMany(AutomationLog::class)->orderByDesc('received_at');
     }
 
     public function recalculateTotal(): void

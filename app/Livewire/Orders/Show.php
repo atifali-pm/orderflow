@@ -18,7 +18,12 @@ class Show extends Component
 
     public function mount(Order $order): void
     {
-        $this->order = $order->load(['customer', 'items']);
+        $this->order = $order->load(['customer', 'items', 'automationLogs']);
+    }
+
+    public function refreshTimeline(): void
+    {
+        $this->order = $this->order->fresh(['customer', 'items', 'automationLogs']);
     }
 
     public function markPaid(): void
@@ -61,7 +66,7 @@ class Show extends Component
 
     private function refresh(string $message): void
     {
-        $this->order = $this->order->fresh(['customer', 'items']);
+        $this->order = $this->order->fresh(['customer', 'items', 'automationLogs']);
         session()->flash('status', $message);
     }
 }

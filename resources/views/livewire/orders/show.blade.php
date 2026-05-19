@@ -107,11 +107,36 @@
                 </div>
             @endif
 
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <div class="text-xs uppercase text-gray-500 font-semibold tracking-wider">Automation timeline</div>
-                <div class="mt-3 border border-dashed border-gray-300 rounded-md p-6 text-center text-sm text-gray-500">
-                    Phase 3 will render the n8n automation timeline here (workflow steps, callbacks, retries).
+            <div class="bg-white rounded-lg shadow-sm p-6" wire:poll.5s="refreshTimeline">
+                <div class="flex items-center justify-between">
+                    <div class="text-xs uppercase text-gray-500 font-semibold tracking-wider">Automation timeline</div>
+                    @if ($order->invoice_number)
+                        <span class="text-xs text-gray-500">Invoice <span class="font-mono text-gray-700">{{ $order->invoice_number }}</span></span>
+                    @endif
                 </div>
+
+                @if ($order->automationLogs->isEmpty())
+                    <div class="mt-3 border border-dashed border-gray-300 rounded-md p-6 text-center text-sm text-gray-500">
+                        No automation events yet. Place or update an order; the n8n workflow will populate this timeline.
+                    </div>
+                @else
+                    <ol class="mt-4 space-y-3">
+                        @foreach ($order->automationLogs as $log)
+                            <li class="flex gap-3">
+                                <div class="mt-1 h-2 w-2 rounded-full flex-shrink-0 @if ($log->status === 'failed') bg-rose-500 @elseif ($log->status === 'info') bg-sky-500 @else bg-emerald-500 @endif"></div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <div class="text-sm font-medium text-gray-900 font-mono">{{ $log->step }}</div>
+                                        <div class="text-xs text-gray-500">{{ $log->received_at->diffForHumans() }}</div>
+                                    </div>
+                                    @if ($log->payload)
+                                        <pre class="mt-1 text-xs bg-gray-50 border border-gray-100 rounded p-2 overflow-x-auto">{{ json_encode($log->payload, JSON_PRETTY_PRINT) }}</pre>
+                                    @endif
+                                </div>
+                            </li>
+                        @endforeach
+                    </ol>
+                @endif
             </div>
         </div>
     </div>

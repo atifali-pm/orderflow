@@ -57,6 +57,18 @@ services:
       N8N_PROTOCOL: http
       WEBHOOK_URL: http://localhost:${N8N_HOST_PORT:-5679}/
       GENERIC_TIMEZONE: Asia/Karachi
+      # n8n calls Laravel back at this base URL. Phase 1-4 run Laravel via
+      # `php artisan serve` on the host, so n8n reaches it via host-gateway.
+      # When Phase 5 puts Laravel behind nginx inside docker, swap this to
+      # http://app/api/orders.
+      ORDERFLOW_API_BASE: http://host.docker.internal:8000/api/orders
+      ORDERFLOW_API_TOKEN: ${N8N_API_TOKEN:-local-dev-api-token-not-for-production-use}
+      ORDERFLOW_HMAC_SECRET: ${N8N_HMAC_SECRET:-local-dev-hmac-secret-not-for-production-use}
+      # SMTP into Mailpit for the order-placed workflow's email step.
+      ORDERFLOW_SMTP_HOST: mailpit
+      ORDERFLOW_SMTP_PORT: 1025
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - n8n_data:/home/node/.n8n
       - ../n8n/workflows:/home/node/workflows

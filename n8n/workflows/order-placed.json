@@ -1,0 +1,167 @@
+{
+  "id": "2",
+  "name": "Order placed",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-placed",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "node-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 320],
+      "webhookId": "orderflow-order-placed"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "orderId",
+              "value": "={{ $json.body.order.id }}"
+            },
+            {
+              "name": "orderRef",
+              "value": "={{ $json.body.order.reference }}"
+            },
+            {
+              "name": "customerEmail",
+              "value": "={{ $json.body.order.customer.email }}"
+            },
+            {
+              "name": "orderTotal",
+              "value": "={{ $json.body.order.total }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-extract",
+      "name": "Extract fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [420, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ORDERFLOW_API_BASE }}/{{ $json.orderId }}/automation-log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.ORDERFLOW_API_TOKEN }}" },
+            { "name": "Idempotency-Key", "value": "=order-{{ $json.orderId }}-webhook-received-{{ $execution.id }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"step\": \"webhook.received\",\n  \"status\": \"ok\",\n  \"payload\": { \"ref\": \"{{ $json.orderRef }}\" }\n}",
+        "options": {}
+      },
+      "id": "node-log-received",
+      "name": "Log webhook.received",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ref = $('Extract fields').first().json.orderRef;\nconst invoiceNumber = 'INV-' + Date.now().toString().slice(-8) + '-' + Math.floor(Math.random() * 1000);\nreturn [{ json: { invoiceNumber, ref } }];"
+      },
+      "id": "node-generate-invoice",
+      "name": "Generate invoice number",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 320]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.ORDERFLOW_API_BASE }}/{{ $('Extract fields').item.json.orderId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.ORDERFLOW_API_TOKEN }}" },
+            { "name": "Idempotency-Key", "value": "=order-{{ $('Extract fields').item.json.orderId }}-invoice-{{ $execution.id }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"invoice_number\": \"{{ $json.invoiceNumber }}\"\n}",
+        "options": {}
+      },
+      "id": "node-patch-order",
+      "name": "Patch order with invoice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ORDERFLOW_API_BASE }}/{{ $('Extract fields').item.json.orderId }}/automation-log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.ORDERFLOW_API_TOKEN }}" },
+            { "name": "Idempotency-Key", "value": "=order-{{ $('Extract fields').item.json.orderId }}-invoice-logged-{{ $execution.id }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"step\": \"invoice.generated\",\n  \"status\": \"ok\",\n  \"payload\": { \"invoice_number\": \"{{ $('Generate invoice number').item.json.invoiceNumber }}\" }\n}",
+        "options": {}
+      },
+      "id": "node-log-invoice",
+      "name": "Log invoice.generated",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 320]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"received\": true,\n  \"order_id\": {{ $('Extract fields').item.json.orderId }},\n  \"invoice_number\": \"{{ $('Generate invoice number').item.json.invoiceNumber }}\"\n}",
+        "options": {}
+      },
+      "id": "node-respond",
+      "name": "Respond to Laravel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1520, 320]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Extract fields", "type": "main", "index": 0 }]]
+    },
+    "Extract fields": {
+      "main": [[{ "node": "Log webhook.received", "type": "main", "index": 0 }]]
+    },
+    "Log webhook.received": {
+      "main": [[{ "node": "Generate invoice number", "type": "main", "index": 0 }]]
+    },
+    "Generate invoice number": {
+      "main": [[{ "node": "Patch order with invoice", "type": "main", "index": 0 }]]
+    },
+    "Patch order with invoice": {
+      "main": [[{ "node": "Log invoice.generated", "type": "main", "index": 0 }]]
+    },
+    "Log invoice.generated": {
+      "main": [[{ "node": "Respond to Laravel", "type": "main", "index": 0 }]]
+    }
+  }
+}
