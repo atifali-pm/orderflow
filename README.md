@@ -27,7 +27,7 @@ Most order tools either run pure manual ops in a CRUD UI or push everything thro
 
 - Phase 0 (scaffolded): repo structure, docker-compose stub with five services, memory, README, HANDS-ON, .env.example
 - Phase 1 (shipped): Laravel 11 + Breeze (Livewire), Pest, Postgres, Redis, Mailpit wired. Customers / Orders / OrderItems domain. Livewire surfaces for the orders index, create form, and detail view. Demo seeder for fast local data.
-- Phase 2: outbound integration. Events, queue, HMAC dispatcher, manual n8n flow
+- Phase 2 (shipped): outbound integration. Four domain events (OrderPlaced / OrderPaid / OrderShipped / OrderCancelled) fired from the Create form and from status buttons on the Show view. Events queue `SyncToN8nJob` (Horizon, Redis-backed) which POSTs a signed payload to n8n. HMAC uses deeply sorted-key canonical JSON so n8n can verify deterministically. A demo "Log payload" workflow imported into n8n confirms the round trip returns 200.
 - Phase 3: inbound integration. API endpoints, idempotency, AutomationLog, committed workflow JSON
 - Phase 4: polish. Timeline UI, dashboard cards, recorded demo, screenshots
 - Phase 5 (optional): hosting if there is a reason
@@ -42,9 +42,17 @@ Create-order form. Pick a customer, add line items, totals recompute live:
 
 ![New order form](screenshots/02-order-create.png)
 
-Order detail view. Customer, status, totals, line items, and a placeholder for the Phase 3 automation timeline:
+Order detail view. Customer, status, totals, line items, status-change buttons (Mark paid / Mark shipped / Cancel) that fire the matching domain event, and a placeholder for the Phase 3 automation timeline:
 
 ![Order detail](screenshots/03-order-show.png)
+
+Horizon supervisor with the `default` and `n8n` queues, supervised in autoscaling mode:
+
+![Horizon dashboard](screenshots/04-horizon-dashboard.png)
+
+A `SyncToN8nJob` completing on the `n8n` queue after a status change:
+
+![Horizon completed jobs](screenshots/05-horizon-completed.png)
 
 ## Running it locally (Phase 1)
 
@@ -73,3 +81,32 @@ php artisan serve
 ```
 
 Demo login (created by the seeder): `demo@orderflow.local` / `password`.
+
+## Phase 2 round trip (outbound to n8n)
+
+```bash
+# 1. Start n8n alongside the support services.
+docker compose -f docker/docker-compose.yml up -d n8n
+
+# 2. Start Horizon to consume the n8n queue.
+php artisan horizon
+
+# 3. Open the n8n editor at http://localhost:5679 and create a workflow with one
+#    Webhook node (POST /webhook/order-placed) that responds 200. Activate it.
+#    The repo ships a tinker-importable copy at n8n/workflows/log-payload.json
+#    (Phase 3 commits the production order-placed.json).
+
+# 4. Trigger the round trip without touching the UI.
+php artisan n8n:test-webhook order.placed
+
+# 5. Or place an order in the UI: http://orderflow.local:8000/orders/create
+#    The save also dispatches OrderPlaced. Status buttons on the Show view
+#    fire OrderPaid / OrderShipped / OrderCancelled the same way.
+
+# 6. Watch jobs in Horizon at http://orderflow.local:8000/horizon and inbound
+#    webhook executions in n8n at http://localhost:5679.
+```
+
+Outbound payloads are signed with `HMAC-SHA256` using a stable, deeply
+sorted-key JSON serialisation so n8n can verify without any whitespace
+or ordering ambiguity. Headers: `X-Orderflow-Event`, `X-Orderflow-Signature`.

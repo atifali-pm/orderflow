@@ -42,6 +42,30 @@
                     <div class="text-xs text-gray-500 mt-2">
                         Placed {{ optional($order->placed_at)->format('M j, Y \a\t g:i a') ?? 'n/a' }}
                     </div>
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @if ($order->status === 'pending')
+                            <button type="button" wire:click="markPaid"
+                                    class="text-xs px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700">
+                                Mark paid
+                            </button>
+                        @endif
+
+                        @if (in_array($order->status, ['pending', 'paid'], true))
+                            <button type="button" wire:click="markShipped"
+                                    class="text-xs px-2 py-1 rounded bg-sky-600 text-white hover:bg-sky-700">
+                                Mark shipped
+                            </button>
+                        @endif
+
+                        @if ($order->status !== 'cancelled')
+                            <button type="button" wire:click="cancel"
+                                    wire:confirm="Cancel this order?"
+                                    class="text-xs px-2 py-1 rounded bg-rose-600 text-white hover:bg-rose-700">
+                                Cancel
+                            </button>
+                        @endif
+                    </div>
                 </div>
 
                 <div class="bg-white rounded-lg shadow-sm p-4">

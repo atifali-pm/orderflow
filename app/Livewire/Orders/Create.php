@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Orders;
 
+use App\Events\OrderPlaced;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -90,7 +91,9 @@ class Create extends Component
             return $order;
         });
 
-        session()->flash('status', "Order {$order->reference} created.");
+        OrderPlaced::dispatch($order);
+
+        session()->flash('status', "Order {$order->reference} created. Webhook queued for n8n.");
 
         return $this->redirectRoute('orders.show', $order, navigate: true);
     }

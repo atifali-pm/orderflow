@@ -1,10 +1,12 @@
 <?php
 
+use App\Jobs\SyncToN8nJob;
 use App\Livewire\Orders\Create;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Livewire\Livewire;
 
 use function Pest\Laravel\actingAs;
@@ -12,6 +14,8 @@ use function Pest\Laravel\actingAs;
 uses(RefreshDatabase::class);
 
 it('creates an order with line items end to end', function () {
+    Bus::fake([SyncToN8nJob::class]);
+
     $user = User::factory()->create();
     $customer = Customer::factory()->create();
 
