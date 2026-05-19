@@ -44,7 +44,7 @@ When you finish, drop screenshots of the orders index and create-order form into
 ## Full phase plan
 
 - [x] **Phase 0**: scaffold dirs, memory, docker-compose stub with five services, README, HANDS-ON, .env.example, .gitignore, first push (this commit).
-- [ ] **Phase 1**: Laravel 11 install, Breeze (Livewire+Alpine), Pest, domain model, Livewire CRUD, DemoSeeder, navigation. End-to-end create-order flow without n8n.
+- [x] **Phase 1**: Laravel 11 install, Breeze (Livewire+Alpine), Pest, domain model, Livewire CRUD, DemoSeeder, navigation. End-to-end create-order flow without n8n.
 - [ ] **Phase 2**: Outbound integration. `OrderPlaced` / `OrderPaid` / `OrderShipped` / `OrderCancelled` events, `SyncToN8nJob`, `WebhookDispatcher`, `HmacSigner`, Horizon, .env wiring. Manual n8n flow that logs payload.
 - [ ] **Phase 3**: Inbound integration. `/api/orders/*` endpoints, `VerifyN8nApiToken` middleware, idempotency-key handling, `AutomationLog` model, commit `n8n/workflows/order-placed.json`.
 - [ ] **Phase 4**: Polish. Livewire timeline view that polls AutomationLog, dashboard cards, screen-capture demo recording, more screenshots into /screenshots/.

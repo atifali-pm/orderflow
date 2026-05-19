@@ -26,7 +26,7 @@ Most order tools either run pure manual ops in a CRUD UI or push everything thro
 ## Phases
 
 - Phase 0 (scaffolded): repo structure, docker-compose stub with five services, memory, README, HANDS-ON, .env.example
-- Phase 1: domain model and Livewire CRUD without n8n
+- Phase 1 (shipped): Laravel 11 + Breeze (Livewire), Pest, Postgres, Redis, Mailpit wired. Customers / Orders / OrderItems domain. Livewire surfaces for the orders index, create form, and detail view. Demo seeder for fast local data.
 - Phase 2: outbound integration. Events, queue, HMAC dispatcher, manual n8n flow
 - Phase 3: inbound integration. API endpoints, idempotency, AutomationLog, committed workflow JSON
 - Phase 4: polish. Timeline UI, dashboard cards, recorded demo, screenshots
@@ -34,10 +34,42 @@ Most order tools either run pure manual ops in a CRUD UI or push everything thro
 
 ## Screenshots
 
-Screenshots land in [`/screenshots/`](screenshots/) once the UI is functional (Phase 1 onward).
+Orders index, paginated with status filter:
 
-<!-- Example embeds, fill in as screenshots arrive:
 ![Orders index](screenshots/01-orders-index.png)
-![Order create](screenshots/02-order-create.png)
-![Order timeline with n8n results](screenshots/03-order-timeline.png)
--->
+
+Create-order form. Pick a customer, add line items, totals recompute live:
+
+![New order form](screenshots/02-order-create.png)
+
+Order detail view. Customer, status, totals, line items, and a placeholder for the Phase 3 automation timeline:
+
+![Order detail](screenshots/03-order-show.png)
+
+## Running it locally (Phase 1)
+
+```bash
+# 1. Start the support services (Postgres on host port 5457, Redis 6383, Mailpit 8025).
+docker compose -f docker/docker-compose.yml up -d postgres redis mailpit
+
+# 2. PHP deps, JS deps, asset build.
+composer install
+npm install
+npm run build
+
+# 3. Create test database for Pest (one-off).
+docker exec orderflow-postgres psql -U orderflow -d postgres -c "CREATE DATABASE orderflow_test;"
+
+# 4. App key + migrate + seed.
+cp .env.example .env   # then edit DB_HOST to 127.0.0.1 and DB_PORT to 5457 for host-side use
+php artisan key:generate
+php artisan migrate --seed
+
+# 5. Serve.
+php artisan serve
+
+# 6. Tests.
+./vendor/bin/pest
+```
+
+Demo login (created by the seeder): `demo@orderflow.local` / `password`.
